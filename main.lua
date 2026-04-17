@@ -14,6 +14,8 @@ function table.size(t)
 	return count
 end
 
+-- p
+
 function toggleFullscreen()
 	love.window.setFullscreen(not love.window.getFullscreen(), "exclusive")
 end
