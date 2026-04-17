@@ -64,20 +64,49 @@ function isempty()
 	return true
 end
 
+screen = {}
+screen.scale = 1
+screen.w = 64
+screen.h = 64
+screen.bcolor = {1,1,1}
+screen.canvas = love.graphics.newCanvas(screen.w, screen.h)
+function screen.setDims(w,h)
+	screen.canvas = love.graphics.newCanvas(w,h)
+	screen.w = screen.scale*w
+	screen.h = screen.scale*h
+	love.window.setMode(screen.w, screen.h)
+end
+function screen.setBcolor(r,g,b)
+	if g == nil and b == nil then
+		screen.bcolor = r
+	else
+		screen.bcolor = {r,g,b}
+	end
+	love.graphics.setBackgroundColor(screen.bcolor)
+end
+
+function mouseX()
+	return love.mouse.getX()/screen.scale
+end
+function mouseY()
+	return love.mouse.getY()/screen.scale
+end
+
 function love.load()
 	love.graphics.setDefaultFilter("nearest", "nearest")
-	love.graphics.setBackgroundColor(.75,.75,.75)
+	screen.canvas:setFilter("nearest", "nearest")
+	screen.setBcolor(.75,.75,.75)
 	
 	
 	board = {}
 	board.x = 0
 	board.y = 32
-	board.width = 8
-	board.height = 6
+	board.width = 48
+	board.height = 25
 	board.grid = 16
 	board.tiles = {}
 	board.mines = {}
-	minesPopulation = (board.width*board.height)*0.2
+	minesPopulation = (board.width*board.height)*0.1
 	if minesPopulation == board.width*board.height then
 		minesPopulation = minesPopulation - 1
 	end
@@ -96,8 +125,8 @@ function love.load()
 	textures["marked"] = assld("image","assets/img/tilemarked.png")
 	
 	
-	
-	love.window.setMode(board.width*board.grid, board.height*board.grid+32)
+	love.graphics.setCanvas()
+	screen.setDims(board.width*board.grid, board.height*board.grid+32)
 end
 
 function tile(x,y,state)
@@ -224,7 +253,7 @@ function click(mx, my, butt)
 end
 
 function love.mousepressed(x, y, butt)
-	click(x,y,butt)
+	click(x/screen.scale,y/screen.scale,butt)
 end
 
 function love.update(dt)
@@ -249,11 +278,14 @@ function love.keypressed(key)
 			end
 		end
 	end
-	if key == "z" then click(love.mouse.getX(), love.mouse.getY(), 1) end
-	if key == "x" then click(love.mouse.getX(), love.mouse.getY(), 2) end
+	if key == "z" then click(mouseX(), mouseY(), 1) end
+	if key == "x" then click(mouseX(), mouseY(), 2) end
 end
 
 function love.draw()
+	love.graphics.setCanvas(screen.canvas)
+	love.graphics.clear({.75,.75,.75})
+
 	love.graphics.setColor(1,1,1)
 	for x = 1, board.width do
 		for y = 1, board.height do
@@ -264,4 +296,8 @@ function love.draw()
 	end
 	love.graphics.setColor(0,0,0)
 	love.graphics.print("Flags: "..(#board.mines-markedcount))
+	love.graphics.setCanvas()
+	love.graphics.setColor(1,1,1)
+	love.graphics.scale(screen.scale)
+	love.graphics.draw(screen.canvas)
 end
