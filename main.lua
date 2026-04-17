@@ -65,7 +65,7 @@ function isempty()
 end
 
 screen = {}
-screen.scale = 1
+screen.scale = 2
 screen.w = 64
 screen.h = 64
 screen.bcolor = {1,1,1}
@@ -101,7 +101,7 @@ function love.load()
 	board = {}
 	board.x = 0
 	board.y = 32
-	board.width = 48
+	board.width = 50
 	board.height = 25
 	board.grid = 16
 	board.tiles = {}
