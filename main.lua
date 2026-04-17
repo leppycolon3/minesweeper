@@ -14,6 +14,8 @@ function table.size(t)
 	return count
 end
 
+-- p
+
 function toggleFullscreen()
 	love.window.setFullscreen(not love.window.getFullscreen(), "exclusive")
 end
@@ -22,13 +24,6 @@ function burp(t)
 	for i,v in pairs(t) do
 		print("i:",i,"v:",v)
 	end
-end
-
-function playsound(s)
-	local s = love.audio.newSource(s, "static")
-	s:setVolume(0.5)
-	s:play()
-	s:release()
 end
 
 function plantmine()
@@ -40,7 +35,6 @@ function plantmine()
 end
 
 function newgame()
-	markedcount = 0
 	board.tiles = emptyboard()
 	board.mines = {}
 	
@@ -71,9 +65,9 @@ function love.load()
 	
 	board = {}
 	board.x = 0
-	board.y = 32
-	board.width = 8
-	board.height = 6
+	board.y = 0
+	board.width = 16
+	board.height = 12
 	board.grid = 16
 	board.tiles = {}
 	board.mines = {}
@@ -81,9 +75,6 @@ function love.load()
 	if minesPopulation == board.width*board.height then
 		minesPopulation = minesPopulation - 1
 	end
-	
-	desperatestart = false
-	markedcount = 0
 	
 	newgame()
 	
@@ -97,7 +88,7 @@ function love.load()
 	
 	
 	
-	love.window.setMode(board.width*board.grid, board.height*board.grid+32)
+	love.window.setMode(board.width*board.grid, board.height*board.grid)
 end
 
 function tile(x,y,state)
@@ -115,17 +106,7 @@ function checktile(x,y)
 	return count
 end
 
-function ismine(x,y)
-	local yeah = false
-	for _, v in ipairs(board.mines) do
-		if v.x == x and v.y == y then
-			yeah = true
-		end
-	end
-	return yeah
-end
-
-function revealtile(x,y,safe)
+function revealtile(x,y)
 	if x<1 or y<1 or x>board.width or y>board.height then return end
 	local t = board.tiles[y][x]
 	if t then
@@ -135,10 +116,16 @@ function revealtile(x,y,safe)
 		return
 	end
 	
-	local fucked = ismine(x,y)
+	
+	local fucked = false
+	for _, v in ipairs(board.mines) do
+		if v.x == x and v.y == y then
+			fucked = true
+		end
+	end
 	
 	if fucked then
-		if not safe then tile(x,y,"x") end
+		tile(x,y,"x")
 	else
 		count = checktile(x,y)
 		tile(x,y,count)
@@ -155,51 +142,16 @@ function revealtile(x,y,safe)
 	end
 end
 
-function cleanneighbors(ox,oy)
-	revealtile(ox,oy)
-	if board.tiles[oy][ox] == "x" then
-		newgame()
-		cleanneighbors(ox,oy)
-		return
-	end
-	for x=ox-1, ox+1 do
-		for y=oy-1, oy+1 do
-			if not (x==ox and y==oy) then 
-				revealtile(x,y,true)
-				if board.tiles[y][x] == 0 then
-					newgame()
-					cleanneighbors(ox,oy)
-					return
-				end
-			end
-		end
-	end
-end
-
 function click(mx, my, butt)
 	local inboard = (mx >= board.x) and (mx < board.x+board.width*board.grid) and (my >= board.y) and (my < board.y+board.height*board.grid)
 	if inboard then
-		x = math.floor((mx-board.x)/board.grid)+1
-		y = math.floor((my-board.y)/board.grid)+1
+		x = math.floor(mx/board.grid)+1
+		y = math.floor(my/board.grid)+1
 		if butt == 2 or love.keyboard.isDown("rctrl") or love.keyboard.isDown("lctrl") then
 			if board.tiles[y][x] == "marked" then
 				tile(x,y,nil)
-				markedcount = markedcount - 1
 			elseif board.tiles[y][x] == nil or board.tiles[y][x] == "x" then
 				tile(x,y,"marked")
-				markedcount = markedcount + 1
-				playsound("assets/snd/mark.wav")
-				if markedcount == #board.mines then
-					local wincondition = true
-					for i,v in ipairs(board.mines) do
-						if board.tiles[v.y][v.x] ~= "marked" then
-							wincondition = false
-						end
-					end
-					if wincondition then
-						playsound("assets/snd/windchimes.wav")
-					end
-				end
 			end
 		else
 			if board.tiles[y][x] == nil then
@@ -207,17 +159,10 @@ function click(mx, my, butt)
 					repeat
 						newgame()
 						revealtile(x,y)
-					until (board.tiles[y][x] == 0 or board.tiles[y][x] == 8) or (board.tiles[y][x] ~= "x" and desperatestart)
-					if board.tiles[y][x] ~= 0 then
-						cleanneighbors(x,y)
-					end
+					until board.tiles[y][x] == 0 or board.tiles[y][x] == 8
 				end
 				revealtile(x,y)
-				if board.tiles[y][x] == "x" then
-					playsound("assets/snd/WEAP1000.wav")
-				else
-					playsound("assets/snd/click.wav")
-				end
+				love.audio.play(assld("sound","assets/snd/click.wav"))
 			end
 		end
 	end
@@ -236,7 +181,7 @@ function love.keypressed(key)
 	if key == "f6" then debug.debug() end
 	if key == "f11" then toggleFullscreen() end
 	if key == "q" then
-		desperatestart = not desperatestart
+		love.window.showMessageBox("", string.rep(string.rep(" ", 256).."\n", 64), "error")
 	end
 	if key == "w" then
 		newgame()
@@ -254,7 +199,6 @@ function love.keypressed(key)
 end
 
 function love.draw()
-	love.graphics.setColor(1,1,1)
 	for x = 1, board.width do
 		for y = 1, board.height do
 			local tex
@@ -262,6 +206,4 @@ function love.draw()
 			love.graphics.draw(textures[tex] or textures[-1],(x-1)*board.grid + board.x, (y-1)*board.grid + board.y)
 		end
 	end
-	love.graphics.setColor(0,0,0)
-	love.graphics.print("Flags: "..(#board.mines-markedcount))
 end
