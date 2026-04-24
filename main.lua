@@ -101,8 +101,8 @@ function love.load()
 	board = {}
 	board.x = 0
 	board.y = 32
-	board.width = 50
-	board.height = 25
+	board.width = 25
+	board.height = 15
 	board.grid = 16
 	board.tiles = {}
 	board.mines = {}
