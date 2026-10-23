@@ -101,12 +101,12 @@ function love.load()
 	board = {}
 	board.x = 0
 	board.y = 32
-	board.width = 25
-	board.height = 15
+	board.width = 40
+	board.height = 20
 	board.grid = 16
 	board.tiles = {}
 	board.mines = {}
-	minesPopulation = (board.width*board.height)*0.1
+	minesPopulation = (board.width*board.height)*0.25
 	if minesPopulation == board.width*board.height then
 		minesPopulation = minesPopulation - 1
 	end
@@ -158,9 +158,9 @@ function revealtile(x,y,safe)
 	if x<1 or y<1 or x>board.width or y>board.height then return end
 	local t = board.tiles[y][x]
 	if t then
-		if t == "marked" then
-			table.remove(board.tiles[y],x)
-		end
+		-- if t == "marked" then
+			-- table.remove(board.tiles[y],x)
+		-- end
 		return
 	end
 	
@@ -172,14 +172,14 @@ function revealtile(x,y,safe)
 		count = checktile(x,y)
 		tile(x,y,count)
 		if count == 0 then
-			revealtile(x-1,y-1)
-			revealtile(x,y-1)
-			revealtile(x+1,y-1)
-			revealtile(x-1,y)
-			revealtile(x+1,y)
-			revealtile(x-1,y+1)
-			revealtile(x,y+1)
-			revealtile(x+1,y+1)
+			revealtile(x-1, y-1)
+			revealtile(x,   y-1)
+			revealtile(x+1, y-1)
+			revealtile(x-1, y)
+			revealtile(x+1, y)
+			revealtile(x-1, y+1)
+			revealtile(x,   y+1)
+			revealtile(x+1, y+1)
 		end
 	end
 end
@@ -203,6 +203,36 @@ function cleanneighbors(ox,oy)
 			end
 		end
 	end
+end
+
+function chord(ox, oy)
+	local flags = 0
+	if board.tiles[oy][ox] and type(board.tiles[oy][ox]) == "number" and board.tiles[oy][ox] > 0 then
+		for x=ox-1, ox+1 do
+			for y=oy-1, oy+1 do
+				if board.tiles[y] and not (x==ox and y==oy) then
+					if board.tiles[y][x] == "marked" then flags = flags + 1 end
+				end
+			end
+		end
+	else
+		return false
+	end
+	
+	if flags == board.tiles[oy][ox] then
+		revealtile(ox-1, oy-1)
+		revealtile(ox,   oy-1)
+		revealtile(ox+1, oy-1)
+		revealtile(ox-1, oy)
+		revealtile(ox+1, oy)
+		revealtile(ox-1, oy+1)
+		revealtile(ox,   oy+1)
+		revealtile(ox+1, oy+1)
+	else
+		return false
+	end
+	
+	return true
 end
 
 function click(mx, my, butt)
@@ -230,7 +260,7 @@ function click(mx, my, butt)
 					end
 				end
 			end
-		else
+		elseif butt == 1 then
 			if board.tiles[y][x] == nil then
 				if isempty() then
 					repeat
@@ -246,6 +276,28 @@ function click(mx, my, butt)
 					playsound("assets/snd/WEAP1000.wav")
 				else
 					playsound("assets/snd/click.wav")
+				end
+			end
+		elseif butt == 3 or love.keyboard.isDown("rshift") or love.keyboard.isDown("lshift") then
+			if board.tiles[y][x] then
+				if chord(x,y) == true then
+					local oops = false
+					
+					for tx=x-1, x+1 do
+						for ty=y-1, y+1 do
+							if board.tiles[ty] and not (tx==x and ty==y) then
+								if board.tiles[ty][tx] == "x" then
+									oops = true
+								end
+							end
+						end
+					end
+					
+					if oops then
+						playsound("assets/snd/WEAP1000.wav")
+					else
+						playsound("assets/snd/click.wav")
+					end
 				end
 			end
 		end
@@ -275,11 +327,13 @@ function love.keypressed(key)
 			for y = 1, board.height do
 				board.tiles[y][x] = nil
 				revealtile(x,y)
+				markedcount = 0
 			end
 		end
 	end
 	if key == "z" then click(mouseX(), mouseY(), 1) end
 	if key == "x" then click(mouseX(), mouseY(), 2) end
+	if key == "c" then click(mouseX(), mouseY(), 3) end
 end
 
 function love.draw()
