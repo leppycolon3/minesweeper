@@ -24,9 +24,10 @@ function burp(t)
 	end
 end
 
-function playsound(s)
+function playsound(s, vol)
+	vol = vol or 1
 	local s = love.audio.newSource(s, "static")
-	s:setVolume(0.5)
+	s:setVolume(0.25*vol)
 	s:play()
 	s:release()
 end
@@ -43,6 +44,7 @@ function newgame()
 	markedcount = 0
 	board.tiles = emptyboard()
 	board.mines = {}
+	board.won = false
 	
 	for m = 1, minesPopulation do
 		plantmine()
@@ -101,12 +103,13 @@ function love.load()
 	board = {}
 	board.x = 0
 	board.y = 32
-	board.width = 40
-	board.height = 20
+	board.width = 32
+	board.height = 16
 	board.grid = 16
+	board.won = false
 	board.tiles = {}
 	board.mines = {}
-	minesPopulation = (board.width*board.height)*0.25
+	minesPopulation = (board.width*board.height)*0.15
 	if minesPopulation == board.width*board.height then
 		minesPopulation = minesPopulation - 1
 	end
@@ -205,17 +208,27 @@ function cleanneighbors(ox,oy)
 	end
 end
 
+function isinboard(x,y)
+	return (x>0 and x<=board.width and y>0 and y<=board.height)
+end
+
 function chord(ox, oy)
 	local flags = 0
-	if board.tiles[oy][ox] and type(board.tiles[oy][ox]) == "number" and board.tiles[oy][ox] > 0 then
+	local didanything = false
+	if board.tiles[oy][ox] and type(board.tiles[oy][ox]) == "number" then
 		for x=ox-1, ox+1 do
 			for y=oy-1, oy+1 do
-				if board.tiles[y] and not (x==ox and y==oy) then
-					if board.tiles[y][x] == "marked" then flags = flags + 1 end
+				if isinboard(x,y) and not (x==ox and y==oy) then 
+					if board.tiles[y][x] == "marked" then flags = flags + 1
+					elseif not board.tiles[y][x] then didanything = true end
 				end
 			end
 		end
 	else
+		return false
+	end
+	
+	if not didanything then
 		return false
 	end
 	
@@ -235,11 +248,26 @@ function chord(ox, oy)
 	return true
 end
 
+function checkforwin()
+	if markedcount > #board.mines then return false end
+	for i=1, board.width do
+		for j=1, board.height do
+			if board.tiles[j] == nil then return false end
+			if board.tiles[j][i] == nil then 
+				if not ismine(i,j) then return false end
+			end
+		end
+	end
+	
+	return true
+end
+
 function click(mx, my, butt)
 	local inboard = (mx >= board.x) and (mx < board.x+board.width*board.grid) and (my >= board.y) and (my < board.y+board.height*board.grid)
 	if inboard then
 		x = math.floor((mx-board.x)/board.grid)+1
 		y = math.floor((my-board.y)/board.grid)+1
+		
 		if butt == 2 or love.keyboard.isDown("rctrl") or love.keyboard.isDown("lctrl") then
 			if board.tiles[y][x] == "marked" then
 				tile(x,y,nil)
@@ -248,17 +276,6 @@ function click(mx, my, butt)
 				tile(x,y,"marked")
 				markedcount = markedcount + 1
 				playsound("assets/snd/mark.wav")
-				if markedcount == #board.mines then
-					local wincondition = true
-					for i,v in ipairs(board.mines) do
-						if board.tiles[v.y][v.x] ~= "marked" then
-							wincondition = false
-						end
-					end
-					if wincondition then
-						playsound("assets/snd/windchimes.wav")
-					end
-				end
 			end
 		elseif butt == 1 then
 			if board.tiles[y][x] == nil then
@@ -273,7 +290,7 @@ function click(mx, my, butt)
 				end
 				revealtile(x,y)
 				if board.tiles[y][x] == "x" then
-					playsound("assets/snd/WEAP1000.wav")
+					playsound("assets/snd/explode.wav", 3)
 				else
 					playsound("assets/snd/click.wav")
 				end
@@ -294,12 +311,17 @@ function click(mx, my, butt)
 					end
 					
 					if oops then
-						playsound("assets/snd/WEAP1000.wav")
+						playsound("assets/snd/explode.wav", 3)
 					else
 						playsound("assets/snd/click.wav")
 					end
 				end
 			end
+		end
+		
+		if (not board.won) and checkforwin() then
+			board.won = true
+			playsound("assets/snd/windchimes.wav", 20)
 		end
 	end
 end
@@ -345,11 +367,18 @@ function love.draw()
 		for y = 1, board.height do
 			local tex
 			if board.tiles[y] and board.tiles[y][x] then tex = board.tiles[y][x] end
-			love.graphics.draw(textures[tex] or textures[-1],(x-1)*board.grid + board.x, (y-1)*board.grid + board.y)
+			love.graphics.draw(textures[tex] or textures[-1], (x-1)*board.grid + board.x, (y-1)*board.grid + board.y)
 		end
 	end
 	love.graphics.setColor(0,0,0)
 	love.graphics.print("Flags: "..(#board.mines-markedcount))
+	if board.won then
+		love.graphics.setColor(1,0,1)
+		love.graphics.print("You win!", 0, 16)
+	end
+	
+	
+	
 	love.graphics.setCanvas()
 	love.graphics.setColor(1,1,1)
 	love.graphics.scale(screen.scale)
